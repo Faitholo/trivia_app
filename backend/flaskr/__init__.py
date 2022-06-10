@@ -12,7 +12,11 @@ from models import setup_db, Question, Category
 QUESTIONS_PER_PAGE = 10
 
 
-def paginator(request, data):
+def paginate(request, data):
+    """
+        Pagination function to limit the page to a maximum
+        Of 10 questions per page
+    """
     page = request.args.get("page", 1, type=int)
     start = (page - 1) * QUESTIONS_PER_PAGE
     end = start + QUESTIONS_PER_PAGE
@@ -25,6 +29,7 @@ def create_app(test_config=None):
     app = Flask(__name__)
     setup_db(app)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
+
 
     # CORS Headers
     @app.after_request
@@ -49,12 +54,15 @@ def create_app(test_config=None):
 
     @app.route('/categories')
     def category():
-        cat = Category.query.all()
+        # Fetch all categories from the categories table
+        all_categories = Category.query.all()
         
+        # Store each category item in categories dict to return type as json
         categories = {
-            category.id: category.type for category in cat}
+            category.id: category.type for category in all_categories}
 
         return jsonify({
+            'success': True,
             "categories": categories
         })
 
@@ -66,24 +74,27 @@ def create_app(test_config=None):
     """
 
 
-
     @app.route('/questions')
     def question():
+        # Fetch all the categories
         cat = Category.query.all()
         categories = {
             category.id: category.type for category in cat
             }
+        
+        # Fetch all thr questions and limit them to 10 per page
         questions = Question.query.all()
-        paginated_questions = paginator(request, questions)
+        paginated_questions = paginate(request, questions)
 
         if not len(paginated_questions):
             abort(404)
         
         
         return jsonify({
-            'questions':paginated_questions,
-            'total questions':len(paginated_questions),
-            'categories':categories
+            'success': True,
+            'questions': paginated_questions,
+            'total_questions': len(paginated_questions),
+            'categories': categories
         })
             
     """
@@ -104,12 +115,15 @@ def create_app(test_config=None):
 
     @app.route('/questions/<int:question_id>', methods=['DELETE'])
     def delete(question_id):
+        # Fetch the question using the question_id
         question = Question.query.get(question_id)
         
         if not question:
             abort(404)
 
         else:
+            # Use the delete function in the model.py to delete the question
+            # And erase the data from the database by commiting the change
             question.delete()
             return jsonify({
                 "success": True,
@@ -132,7 +146,7 @@ def create_app(test_config=None):
     which will require the question and answer text,
     category, and difficulty score.
     
-    Status = Done, added gthe seach and create function together
+    Status = Done, added the search and create function together
 
     TEST: When you submit a question on the "Add" tab,
     the form will clear and the question will appear at the end of the last page
@@ -148,27 +162,36 @@ def create_app(test_config=None):
         '''
         try:
             data = request.get_json()
-
+            
+            # Get the search phrase from the client
             searchTerm = data.get("searchTerm", None)
 
+            # Iterate through the questions table to find similar phrase in any question
             if searchTerm is not None:
                 questions = Question.query.filter(
                     Question.question.ilike("%{}%".format(searchTerm))
                 ).all()
-                formatted_questions = [question.format()
+                
+                # Format the questions using the format function in models.py
+                formatted_question = [question.format()
                                        for question in questions]
 
+                # Return questions with similar phrase as the search term
                 return jsonify({
-                    "questions": formatted_questions,
+                    'success': True,
+                    "questions": formatted_question,
                     "totalQuestions": len(questions),
                     "currentCategory": None
                 })
             else:
+                # This handles the POST request to post a new question
+                # By getting the question posted in the form
                 question = data["question"]
                 answer = data["answer"]
                 difficulty = int(data["difficulty"])
                 category = int(data["category"])
 
+                # This creates a new question object ready to be added to the db
                 question = Question(
                     question=question,
                     answer=answer,
@@ -176,11 +199,13 @@ def create_app(test_config=None):
                     category=category,
                 )
 
+                # This calls the insert function in the model.py which adds and commits the
+                # Newly created object to the database
                 question.insert()
 
                 return jsonify({
                     "added": question.id,
-                    "success": True
+                    "success": True,
                 })
 
         except Exception:
@@ -206,8 +231,10 @@ def create_app(test_config=None):
         """
             Endpoint to get questions according to categories
         """
-        # 
+        # Query the questions table and filter by category
         data = Question.query.filter_by(category=category_id).all()
+        
+        # Format the data using the format function in models.py
         formatted_questions = [question.format() for question in data]
 
         return jsonify({
@@ -243,7 +270,7 @@ def create_app(test_config=None):
             # Get questions for only one category
             questions = Question.query.filter_by(category=str(category)).all()
 
-        # Format the questions
+        # # Format the questions using the format function in models.py
         questions = [question.format() for question in questions]  
 
         # Get the previously asked questions
