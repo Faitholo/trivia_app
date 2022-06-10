@@ -1,10 +1,11 @@
 import os
-from flask import Flask, request, abort, jsonify
+from flask import Flask, request, abort, json, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import random
 
 from numpy import result_type
+from scipy.fftpack import diff
 
 from models import setup_db, Question, Category
 
@@ -124,64 +125,152 @@ def create_app(test_config=None):
     """
 
 
-    @app.route('/questions', methods=['POST'])
-    def new_question():
-        body = request.json()
-
-        question = body.get("title", None)
-        answer = body.get("answer", None)
-        difficulty = body.get("difficulty", None)
-        category = body.get("category", None)
-
-        try:
-            result = Question(question=question, answer=answer, difficulty=difficulty, category=category)
-            result.insert()
-
-            selection = Question.query.order_by(Question.id).all()
-            current_questions = paginator(request, selection)
-
-            return jsonify(
-                {
-                    "success": True,
-                    "created": result.id,
-                    "books": current_questions,
-                    "total_books": len(Question.query.all())
-                }
-            )
-
-        except:
-            abort(422)
-
+       
     """
     @TODO:
     Create an endpoint to POST a new question,
     which will require the question and answer text,
     category, and difficulty score.
+    
+    Status = Done, added gthe seach and create function together
 
     TEST: When you submit a question on the "Add" tab,
     the form will clear and the question will appear at the end of the last page
     of the questions list in the "List" tab.
     """
 
+
+    @app.route("/questions", methods=["POST"])
+    def add_question():
+        '''
+          Endpoint to posts a new question and search for 
+          previous questions based on a search term.
+        '''
+        try:
+            data = request.get_json()
+
+            searchTerm = data.get("searchTerm", None)
+
+            if searchTerm is not None:
+                questions = Question.query.filter(
+                    Question.question.ilike("%{}%".format(searchTerm))
+                ).all()
+                formatted_questions = [question.format()
+                                       for question in questions]
+
+                return jsonify({
+                    "questions": formatted_questions,
+                    "totalQuestions": len(questions),
+                    "currentCategory": None
+                })
+            else:
+                question = data["question"]
+                answer = data["answer"]
+                difficulty = int(data["difficulty"])
+                category = int(data["category"])
+
+                question = Question(
+                    question=question,
+                    answer=answer,
+                    difficulty=difficulty,
+                    category=category,
+                )
+
+                question.insert()
+
+                return jsonify({
+                    "added": question.id,
+                    "success": True
+                })
+
+        except Exception:
+            abort(400)
+
     """
     @TODO:
     Create a POST endpoint to get questions based on a search term.
     It should return any questions for whom the search term
     is a substring of the question.
+    
+    Status = Done
 
     TEST: Search by any phrase. The questions list will update to include
     only question that include that string within their question.
     Try using the word "title" to start.
     """
 
+
+
+    @app.route('/categories/<int:category_id>/questions', methods=['GET'])
+    def question_by_category(category_id):
+        """
+            Endpoint to get questions according to categories
+        """
+        # 
+        data = Question.query.filter_by(category=category_id).all()
+        formatted_questions = [question.format() for question in data]
+
+        return jsonify({
+            "questions": formatted_questions,
+            "totalQuestions": len(data),
+            "Category": None
+        })
     """
     @TODO:
     Create a GET endpoint to get questions based on category.
+
+    Status = Done
 
     TEST: In the "List" tab / main screen, clicking on one of the
     categories in the left column will cause only questions of that
     category to be shown.
     """
+
+
+
+    @app.route("/quizzes", methods=["POST"])
+    def get_question_for_quiz():
+        data = request.json
+        try:
+            category = data['quiz_category']['id']
+        except:
+            abort(400)
+
+        if category == 0:
+            # Get questions from all categories
+            questions = Question.query.all()
+        else:
+            # Get questions for only one category
+            questions = Question.query.filter_by(category=str(category)).all()
+
+        # Format the questions
+        questions = [question.format() for question in questions]  
+
+        # Get the previously asked questions
+        try:
+            prev_question = data['previous_questions']
+        except:
+            abort(400)
+        
+        # Sort out and append questions not previously asked
+        sorted_questions = []
+        for item in questions:
+            if item['id'] not in prev_question:
+                sorted_questions.append(item)
+
+        # Return no new question if player has exhausted the sorted questions list.
+        if len(sorted_questions) == 0:
+            return jsonify({
+                'success': True
+            })
+
+        # Else, return a random question from the sorted list
+        question = random.choice(sorted_questions)
+        
+        return jsonify({
+            'success': True,
+            'question': question
+        })
 
     """
     @TODO:
@@ -189,11 +278,41 @@ def create_app(test_config=None):
     This endpoint should take category and previous question parameters
     and return a random questions within the given category,
     if provided, and that is not one of the previous questions.
+    Stauus = Done
+
 
     TEST: In the "Play" tab, after a user selects "All" or a category,
     one question at a time is displayed, the user is allowed to answer
     and shown whether they were correct or not.
     """
+
+
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return (
+            jsonify({"success": False, "error": 404, "message": "Resource not found"}),
+            404,
+        )
+
+    @app.errorhandler(422)
+    def unprocessable(error):
+        return (
+            jsonify({"success": False, "error": 422, "message": "Unprocessable"}),
+            422,
+        )
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return jsonify({"success": False, "error": 400, "message": "Bad request"}), 400
+
+    @app.errorhandler(405)
+    def not_found(error):
+        return (
+            jsonify({"success": False, "error": 405, "message": "Method not allowed"}),
+            405,
+        )
+
 
     """
     @TODO:
