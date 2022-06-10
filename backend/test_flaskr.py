@@ -27,10 +27,10 @@ class TriviaTestCase(unittest.TestCase):
             
         # new question for testing
         self.new_question = {
-            "question": "How many points is a touchdown worth?",
-            "answer": "6",
-            "category": "6",
-            "difficulty": 1
+            "question": "How many countries are in Africa",
+            "answer": "58",
+            "category": "3",
+            "difficulty": 2
             }
     
     def tearDown(self):
