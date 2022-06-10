@@ -4,50 +4,153 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import random
 
+from numpy import result_type
+
 from models import setup_db, Question, Category
 
 QUESTIONS_PER_PAGE = 10
+
+
+def paginator(request, data):
+    page = request.args.get("page", 1, type=int)
+    start = (page - 1) * QUESTIONS_PER_PAGE
+    end = start + QUESTIONS_PER_PAGE
+    formatted_data = [item.format() for item in data]
+
+    return formatted_data[start: end]
 
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__)
     setup_db(app)
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+    # CORS Headers
+    @app.after_request
+    def after_request(response):
+        response.headers.add(
+            "Access-Control-Allow-Headers", "Content-Type,Authorization,true"
+        )
+        response.headers.add(
+            "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS"
+        )
+        return response
     """
     @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
-    """
+    Status = Done.
+   """
 
     """
     @TODO: Use the after_request decorator to set Access-Control-Allow
+    Status = Done
     """
+
+
+    @app.route('/categories')
+    def category():
+        cat = Category.query.all()
+        
+        categories = {
+            category.id: category.type for category in cat}
+
+        return jsonify({
+            "categories": categories
+        })
 
     """
     @TODO:
     Create an endpoint to handle GET requests
     for all available categories.
+    Status = Done
     """
 
 
+
+    @app.route('/questions')
+    def question():
+        cat = Category.query.all()
+        categories = {
+            category.id: category.type for category in cat
+            }
+        questions = Question.query.all()
+        paginated_questions = paginator(request, questions)
+
+        if not len(paginated_questions):
+            abort(404)
+        
+        
+        return jsonify({
+            'questions':paginated_questions,
+            'total questions':len(paginated_questions),
+            'categories':categories
+        })
+            
     """
     @TODO:
     Create an endpoint to handle GET requests for questions,
     including pagination (every 10 questions).
     This endpoint should return a list of questions,
     number of total questions, current category, categories.
+    Status = Done
+    """
 
+    """
     TEST: At this point, when you start the application
     you should see questions and categories generated,
     ten questions per page and pagination at the bottom of the screen for three pages.
     Clicking on the page numbers should update the questions.
     """
 
+    @app.route('/questions/<int:question_id>', methods=['DELETE'])
+    def delete(question_id):
+        question = Question.query.get(question_id)
+        
+        if not question:
+            abort(404)
+
+        else:
+            question.delete()
+            return jsonify({
+                "success": True,
+                "deleted": question.id
+            })
     """
     @TODO:
     Create an endpoint to DELETE question using a question ID.
+    Status = Done
 
     TEST: When you click the trash icon next to a question, the question will be removed.
     This removal will persist in the database and when you refresh the page.
     """
+
+
+    @app.route('/questions', methods=['POST'])
+    def new_question():
+        body = request.json()
+
+        question = body.get("title", None)
+        answer = body.get("answer", None)
+        difficulty = body.get("difficulty", None)
+        category = body.get("category", None)
+
+        try:
+            result = Question(question=question, answer=answer, difficulty=difficulty, category=category)
+            result.insert()
+
+            selection = Question.query.order_by(Question.id).all()
+            current_questions = paginator(request, selection)
+
+            return jsonify(
+                {
+                    "success": True,
+                    "created": result.id,
+                    "books": current_questions,
+                    "total_books": len(Question.query.all())
+                }
+            )
+
+        except:
+            abort(422)
 
     """
     @TODO:
