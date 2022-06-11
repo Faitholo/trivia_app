@@ -8,6 +8,8 @@ from numpy import result_type
 from scipy.fftpack import diff
 
 from models import setup_db, Question, Category
+from dotenv import load_dotenv
+load_dotenv('/home/trivia_app/backend/.env')
 
 QUESTIONS_PER_PAGE = 10
 
@@ -240,7 +242,7 @@ def create_app(test_config=None):
         return jsonify({
             "questions": formatted_questions,
             "totalQuestions": len(data),
-            "Category": None
+            "Category": category_id
         })
     """
     @TODO:
