@@ -78,6 +78,7 @@ You will need to provide detailed documentation of your API endpoints including 
 - Fetches a dictionary of categories in which the keys are the ids and the value is the corresponding string of the category
 - Request Arguments: None
 - Returns: An object with a single key, `categories`, that contains an object of `id: category_string` key: value pairs.
+- Example: http://127.0.0.1:5000/categories
 
 ```json
 {
@@ -95,6 +96,7 @@ You will need to provide detailed documentation of your API endpoints including 
 - Fetches a dictionary of categories and questions in that category in which the keys are the ids and the value is the corresponding string of the category and key value pairs for the questions dictionaries.
 - Request Arguments: None
 - Returns: An object with a single key, `categories`, that contains an object of `id: category_string` key: value pairs.
+- Example: curl http://127.0.0.1:5000/questions
 
 ```json
 {
@@ -129,6 +131,8 @@ You will need to provide detailed documentation of your API endpoints including 
 - Fetches a dictionary of  questions in a given category with the category id requested 
 - Request Arguments: None
 - Returns: An question objects in key: value pairs.
+- Example: curl http://127.0.0.1:5000/categories/4/questions
+
 
 ```json
 {
@@ -149,6 +153,72 @@ You will need to provide detailed documentation of your API endpoints including 
       "question": "Who invented Peanut Butter?"
     }, 
 
+```
+
+`POST '/questions/'`
+- Posts a new question
+- Request Arguments: None
+- Returns: The added question's id
+- Example: curl -i -X POST -H "Content-Type: application/json" -d '{"question":"Checking to see if it works", "answer":"Neverwhere", "difficulty":"1", "category":"5"}' http://127.0.0.1:5000/questions
+
+```json
+{
+  "added": 75, 
+  "success": true
+}
+```
+
+`DELETE '/questions/<int:question_id>'`
+- Deletes the question with the given id
+- Request Arguments: question_id
+- Returns: The deleted question's id
+- Example: curl -X DELETE http://127.0.0.1:5000/questions/71
+
+```json
+{
+  "deleted": 71, 
+  "success": true
+}
+```
+
+`POST '/questions'`
+- Searches for a question based on a search term
+- Request Arguments: None
+- Returns: The total number of questions and the questions related to thre search term
+- Example:  curl -i -X POST -H "Content-Type: application/json" -d '{"searchTerm":"Checking to see if it works"}' http://127.0.0.1:5000/questions
+
+```json
+{
+  "currentCategory": null, 
+  "questions": [
+    {
+      "answer": "Neverwhere", 
+      "category": 5, 
+      "difficulty": 1, 
+      "id": 75, 
+      "question": "Checking to see if it works"
+    }
+  ], 
+  "success": true, 
+  "totalQuestions": 1
+}
+```
+
+`POST '/quizzes'`
+- Request Argument: None
+- Returns a random quize question to play the game
+
+```json
+{
+  "question": {
+    "answer": "Uruguay", 
+    "category": "6", 
+    "difficulty": 4, 
+    "id": 11, 
+    "question": "Which country won the first ever soccer World Cup in 1930?"
+  }, 
+  "success": true
+}
 ```
 
 ## Testing
